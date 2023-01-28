@@ -66,9 +66,8 @@ class Preprocessor(nn.Module):
             torch.tensor: Aligned and recropped landmarks in (N, 68, 2)
             torch.tensor: Aligned and recropped masks in (N, H, W)
         """
-        # keypoints = self.extract_keypoints(x)
-        # keypoints = np.stack([e if e is not None else -1 * np.ones((68, 2)) for e in keypoints])
-        keypoints = torch.load('keypoints_v2.pt')
+        keypoints = self.extract_keypoints(x)
+        keypoints = np.stack([e if e is not None else -1 * np.ones((68, 2)) for e in keypoints])
         trans_params, new_images, new_landmarks, new_masks = align_img_batch(
             x,
             torch.from_numpy(keypoints).to(self.device),

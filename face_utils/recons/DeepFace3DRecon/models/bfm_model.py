@@ -5,7 +5,7 @@ import numpy as np
 import  torch
 import torch.nn.functional as F
 from scipy.io import loadmat
-from ..utils.bfm import transferBFM09
+from ..utils.bfm import transferBFM09, split_coeff
 import os
 
 def perspective_projection(focal, center):
@@ -55,14 +55,6 @@ class ParametricFaceModel:
         self.face_buf = model['tri'].astype(np.int64) - 1
         # vertex indices for 68 landmarks. starts from 0. [68,1]
         self.keypoints = np.squeeze(model['keypoints']).astype(np.int64) - 1
-
-        if is_train:
-            # vertex indices for small face region to compute photometric error. starts from 0.
-            self.front_mask = np.squeeze(model['frontmask2_idx']).astype(np.int64) - 1
-            # vertex indices for each face from small face region. starts from 0. [f,3]
-            self.front_face_buf = model['tri_mask2'].astype(np.int64) - 1
-            # vertex indices for pre-defined skin region to compute reflectance loss
-            self.skin_mask = np.squeeze(model['skinmask'])
         
         if recenter:
             mean_shape = self.mean_shape.reshape([-1, 3])
@@ -81,6 +73,7 @@ class ParametricFaceModel:
         for key, value in self.__dict__.items():
             if type(value).__module__ == np.__name__:
                 setattr(self, key, torch.tensor(value).to(device))
+        return self
 
     
     def compute_shape(self, id_coeff, exp_coeff):
@@ -259,10 +252,9 @@ class ParametricFaceModel:
         Parameters:
             coeffs          -- torch.tensor, size (B, 257)
         """
-        coef_dict = self.split_coeff(coeffs)
+        coef_dict = coeffs
         face_shape = self.compute_shape(coef_dict['id'], coef_dict['exp'])
         rotation = self.compute_rotation(coef_dict['angle'])
-
 
         face_shape_transformed = self.transform(face_shape, rotation, coef_dict['trans'])
         face_vertex = self.to_camera(face_shape_transformed)
